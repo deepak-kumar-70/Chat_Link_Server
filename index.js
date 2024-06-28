@@ -17,7 +17,6 @@ dotenv.config({
 const app = express();
 const mongoUrl = process.env.MONGO_URL;
 const port = process.env.PORT;
-
 connectDB(mongoUrl);
 
 // CORS configuration
