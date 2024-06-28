@@ -23,7 +23,7 @@ connectDB(mongoUrl);
 // CORS configuration
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend URL
+    origin: "https://chats-links-client.vercel.app/", // frontend URL
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true, // allow session cookies from browser to pass through
   })
@@ -37,7 +37,7 @@ app.use("/user", router);
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "https://chats-links-client.vercel.app/",
   },
 });
 app.post("/upload", upload.single("attachment"), async (req, res) => {
