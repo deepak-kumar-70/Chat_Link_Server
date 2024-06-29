@@ -39,7 +39,7 @@ const ResisterUser = async (req, resp) => {
     }
   } catch (error) {
     console.error(error);
-    resp.status(500).json({ message: "Internal server error" });
+    resp.status(500).json({ message: "Internal server error" ,error:error});
   }
 };
 const LoginUser = async (req, resp) => {
