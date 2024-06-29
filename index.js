@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import chatModel from "./Src/Model/chatModel.js";
 import { uploadAttachment } from "./Src/utility/clodinary.js";
 import { upload } from "./Src/Middleware/multer.js";
+import path from 'path'
 dotenv.config({
   path: "./.env",
 });
@@ -32,6 +33,13 @@ app.use(express.static("./Src/Public"));
 app.use(express.json());
 app.use(cookieParser());
 app.use("/user", router);
+app.use((req, res, next) => {
+  const dir = path.join(__dirname, 'src/public');
+  if (!fs.existsSync(dir)){
+      fs.mkdirSync(dir, { recursive: true });
+  }
+  next();
+});
 
 const server = createServer(app);
 const io = new Server(server, {
@@ -63,6 +71,8 @@ app.post("/upload", upload.single("attachment"), async (req, res) => {
 });
 const userSocket = new Map();
 const socketUser = new Map();
+
+
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);

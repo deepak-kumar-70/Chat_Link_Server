@@ -2,7 +2,7 @@ import userModel from "../Model/userModel.js";
 import { uploadCloudnary } from "../utility/clodinary.js";
 import bcrypt from "bcrypt";
 import { sendToken } from "../utility/features.js";
-import path from 'path'
+
 const ResisterUser = async (req, resp) => {
   try {
     const { name, password, mobile } = req.body;
