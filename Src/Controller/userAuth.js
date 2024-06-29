@@ -16,13 +16,13 @@ const ResisterUser = async (req, resp) => {
       return resp.status(400).json({ message: "User already exists" });
     }
     const ImgPath = req.file?.path;
-   
+   console.log(ImgPath,'ava')
     if (!ImgPath) {
       return resp.status(400).json({ message: "Avatar is required" });
     }
 
     const avatarImg = await uploadCloudnary(ImgPath);
-    console.log(ImgPath,avatarImg,'img')
+    console.log(avatarImg,'img')
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
 
