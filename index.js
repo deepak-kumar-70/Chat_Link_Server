@@ -18,7 +18,12 @@ const app = express();
 const mongoUrl = process.env.MONGO_URL;
 const port = process.env.PORT;
 connectDB(mongoUrl);
-
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "https://chats-links-client.vercel.app/",
+  },
+});
 // CORS configuration
 app.use(
   cors({
@@ -33,12 +38,9 @@ app.use(express.json());
 app.use(cookieParser());
 app.use("/user", router);
 
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "https://chats-links-client.vercel.app/",
-  },
-});
+app.get('/',(req,resp)=>{
+  resp.send('hello work')
+})
 app.post("/upload", upload.single("attachment"), async (req, res) => {
   try {
     const { message, receiverId, senderId } = req.body;
