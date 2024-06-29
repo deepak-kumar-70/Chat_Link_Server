@@ -33,13 +33,7 @@ app.use(express.static("./Src/Public"));
 app.use(express.json());
 app.use(cookieParser());
 app.use("/user", router);
-app.use((req, res, next) => {
-  const dir = path.join(__dirname, 'src/public');
-  if (!fs.existsSync(dir)){
-      fs.mkdirSync(dir, { recursive: true });
-  }
-  next();
-});
+
 
 const server = createServer(app);
 const io = new Server(server, {
