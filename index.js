@@ -10,7 +10,7 @@ import mongoose from "mongoose";
 import chatModel from "./Src/Model/chatModel.js";
 import { uploadAttachment } from "./Src/utility/clodinary.js";
 import { upload } from "./Src/Middleware/multer.js";
-import path from 'path'
+
 dotenv.config({
   path: "./.env",
 });
@@ -34,24 +34,23 @@ app.use(express.json());
 app.use(cookieParser());
 app.use("/user", router);
 
-
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "https://chats-links-client.vercel.app",
   },
 });
+
 app.post("/upload", upload.single("attachment"), async (req, res) => {
   try {
     const { message, receiverId, senderId } = req.body;
-    console.log(req.file, "op");
+  
     let attachmentUrl = null;
 
     if (req.file) {
       const result = await uploadAttachment(req.file.path);
-
       attachmentUrl = result.secure_url;
-      console.log(attachmentUrl);
+      console.log(attachmentUrl, "Cloudinary URL:");
     }
 
     const data = { message, receiverId, senderId, attachment: attachmentUrl };
@@ -63,10 +62,9 @@ app.post("/upload", upload.single("attachment"), async (req, res) => {
     res.status(500).send("Error uploading file.");
   }
 });
+
 const userSocket = new Map();
 const socketUser = new Map();
-
-
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
@@ -82,15 +80,19 @@ io.on("connection", (socket) => {
       console.error("Invalid senderId or receiverId provided");
     }
   });
-  socket.on("userStatus", ({ senderId }) => {
-    const userStatus = userSocket.get(senderId);
 
+  socket.on("userStatus", ({ senderId }) => {
+    userSocket.set(senderId, socket.id);
+    console.log(senderId,'id')
+    const userStatus = userSocket.get(senderId);
+    console.log(userStatus,'us')
     if (userStatus) {
       io.to(userStatus).emit("userStatus", { status: "Online", senderId });
     } else {
       io.to(userStatus).emit("userStatus", { status: "Offline" });
     }
   });
+
   socket.on("typing", ({ val, receiverId }) => {
     if (mongoose.Types.ObjectId.isValid(receiverId)) {
       const recipientUser = userSocket.get(receiverId);
@@ -102,52 +104,48 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on(
-    "send message",
-    async ({ message, receiverId, senderId, attachment }) => {
-      if (
-        !mongoose.Types.ObjectId.isValid(senderId) ||
-        !mongoose.Types.ObjectId.isValid(receiverId)
-      ) {
-        console.error("Invalid senderId or receiverId provided");
-        return;
-      }
+  socket.on("send message", async ({ message, receiverId, senderId, attachment }) => {
+    if (
+      !mongoose.Types.ObjectId.isValid(senderId) ||
+      !mongoose.Types.ObjectId.isValid(receiverId)
+    ) {
+      console.error("Invalid senderId or receiverId provided");
+      return;
+    }
 
-      userSocket.set(senderId, socket.id);
-      const recipientUser = userSocket.get(receiverId);
-      if(!recipientUser){
-        socket.emit("messageTick",'singleTick')  
-      }else if(senderId==receiverId){
-        socket.emit("messageTick",'blueTick')  
-      }
-      
-      else{
-        socket.emit("messageTick",'boubleClick')  
-      }
-       
-     
+    userSocket.set(senderId, socket.id);
+    const recipientUser = userSocket.get(receiverId);
+
+    if (!recipientUser) {
+      socket.emit("messageTick", 'singleTick');
+    } else if (senderId === receiverId) {
+      socket.emit("messageTick", 'blueTick');
+    } else {
+      socket.emit("messageTick", 'doubleClick');
+    }
 
     if (recipientUser) {
-        io.to(recipientUser).emit("send message", {
-          message,
-          senderId,
-          attachment,
-        });
-      }
-      if (senderId) {
-        socket.emit("send message", {
-          message,
-          senderId,
-          receiverId,
-          attachment,
-        });
-      }
+      io.to(recipientUser).emit("send message", {
+        message,
+        senderId,
+        attachment,
+      });
     }
-  );
+
+    if (senderId) {
+      socket.emit("send message", {
+        message,
+        senderId,
+        receiverId,
+        attachment,
+      });
+    }
+  });
 
   socket.on("disconnect", () => {
     const offlineUser = socketUser.get(socket.id);
     socket.removeAllListeners("send message");
+
     if (offlineUser) {
       io.emit("userStatus", { status: "Offline", userId: offlineUser });
       userSocket.delete(offlineUser);

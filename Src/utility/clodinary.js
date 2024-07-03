@@ -16,7 +16,7 @@ cloudinary.config({
           console.error('Cloudinary upload error:', error);
           reject(error);
         } else {
-          // Clean up the local file after upload
+       
           fs.unlinkSync(filePath);
           resolve(result);
         }

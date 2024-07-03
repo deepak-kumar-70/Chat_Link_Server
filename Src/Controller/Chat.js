@@ -34,28 +34,37 @@ const allContactedUser = async (req, resp) => {
       return resp.status(400).json({ error: "senderId is required" });
     }
 
-    const messages = await chatModel.find({ senderId: senderId });
+    const messages = await chatModel.find({
+      $or: [
+        { senderId: senderId },
+        { receiverId: senderId }
+      ]
+    }).sort({ createdAt: -1 });;
 
     if (!messages || messages.length === 0) {
-      return resp
-        .status(404)
-        .json({ message: "No messages found for this senderId" });
+      return resp.status(404).json({ message: "No messages found for this senderId" });
     }
 
     const ObjectId = mongoose.Types.ObjectId;
+    const contactedUsers = new Set();
 
-    const contactUser = messages.map((data) => data.receiverId);
-    const uniqueArray = [
-      ...new Set(contactUser.map((id) => id.toString())),
-    ].map((id) => new ObjectId(id));
-   
+    messages.forEach((data) => {
+      if (data.senderId.toString() === senderId) {
+        contactedUsers.add(data.receiverId.toString());
+      } else if (data.receiverId.toString() === senderId) {
+        contactedUsers.add(data.senderId.toString());
+      }
+    });
+
+    const uniqueArray = Array.from(contactedUsers).map(id => new ObjectId(id));
+
     resp.status(200).json(uniqueArray);
   } catch (error) {
     console.error(error);
-    resp
-      .status(500)
-      .json({ error: "An error occurred while fetching messages" });
+    resp.status(500).json({ error: "An error occurred while fetching messages" });
   }
 };
+
+
 
 export { readMessage, allContactedUser };
