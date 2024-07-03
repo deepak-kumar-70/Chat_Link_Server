@@ -21,9 +21,12 @@ const port = process.env.PORT;
 connectDB(mongoUrl);
 
 // CORS configuration
+// http://localhost:5173
+// https://chats-links-client.vercel.app
+const baseUrl='https://chats-links-client.vercel.app'
 app.use(
   cors({
-    origin: "https://chats-links-client.vercel.app", // frontend URL
+    origin: baseUrl, // frontend URL
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true, // allow session cookies from browser to pass through
   })
@@ -37,7 +40,7 @@ app.use("/user", router);
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://chats-links-client.vercel.app",
+    origin:baseUrl,
   },
 });
 
