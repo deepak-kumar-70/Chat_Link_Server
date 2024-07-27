@@ -23,7 +23,7 @@ connectDB(mongoUrl);
 // CORS configuration
 // http://localhost:5173
 // https://chats-links-client.vercel.app
-const baseUrl='https://chats-links-client.vercel.app'
+const baseUrl = "https://chats-links-client.vercel.app";
 app.use(
   cors({
     origin: baseUrl, // frontend URL
@@ -40,14 +40,14 @@ app.use("/user", router);
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin:baseUrl,
+    origin: baseUrl,
   },
 });
 
 app.post("/upload", upload.single("attachment"), async (req, res) => {
   try {
     const { message, receiverId, senderId } = req.body;
-  
+
     let attachmentUrl = null;
 
     if (req.file) {
@@ -68,7 +68,7 @@ app.post("/upload", upload.single("attachment"), async (req, res) => {
 
 const userSocket = new Map();
 const socketUser = new Map();
-
+const onlineUser = new Map();
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
 
@@ -85,73 +85,88 @@ io.on("connection", (socket) => {
   });
 
   socket.on("userStatus", ({ senderId }) => {
-    userSocket.set(senderId, socket.id);
-    console.log(senderId,'id')
-    const userStatus = userSocket.get(senderId);
-    console.log(userStatus,'us')
+    onlineUser.set(senderId, socket.id);
+    console.log(senderId, "id");
+    const userStatus = onlineUser.get(senderId);
+    console.log(userStatus, "us");
     if (userStatus) {
-      io.to(userStatus).emit("userStatus", { status: "Online", senderId });
-    } else {
-      io.to(userStatus).emit("userStatus", { status: "Offline" });
+      socket.broadcast.emit("userStatus", { status: "Online", senderId });
     }
   });
 
-  socket.on("typing", ({ val, receiverId }) => {
+  socket.on("typing", ({ val = false, receiverId }) => {
     if (mongoose.Types.ObjectId.isValid(receiverId)) {
       const recipientUser = userSocket.get(receiverId);
-      if (recipientUser && val !== null) {
-        io.to(recipientUser).emit("typing", { status: "typing..." });
+      if (recipientUser && val) {
+        io.to(recipientUser).emit("typing", { val: val });
       }
     } else {
       console.error("Invalid receiverId provided");
     }
   });
 
-  socket.on("send message", async ({ message, receiverId, senderId, attachment }) => {
-    if (
-      !mongoose.Types.ObjectId.isValid(senderId) ||
-      !mongoose.Types.ObjectId.isValid(receiverId)
-    ) {
-      console.error("Invalid senderId or receiverId provided");
-      return;
-    }
+  socket.on(
+    "send message",
+    async ({ message, receiverId, senderId, attachment }) => {
+      if (
+        !mongoose.Types.ObjectId.isValid(senderId) ||
+        !mongoose.Types.ObjectId.isValid(receiverId)
+      ) {
+        console.error("Invalid senderId or receiverId provided");
+        return;
+      }
 
-    userSocket.set(senderId, socket.id);
-    const recipientUser = userSocket.get(receiverId);
+      userSocket.set(senderId, socket.id);
+      const recipientUser = userSocket.get(receiverId);
 
-    if (!recipientUser) {
-      socket.emit("messageTick", 'singleTick');
-    } else if (senderId === receiverId) {
-      socket.emit("messageTick", 'blueTick');
-    } else {
-      socket.emit("messageTick", 'doubleClick');
-    }
+      if (!recipientUser) {
+        socket.emit("messageTick", "singleTick");
+      } else if (senderId === receiverId) {
+        socket.emit("messageTick", "blueTick");
+      } else {
+        socket.emit("messageTick", "doubleClick");
+      }
 
-    if (recipientUser) {
-      io.to(recipientUser).emit("send message", {
-        message,
-        senderId,
-        attachment,
-      });
-    }
+      if (recipientUser) {
+        io.to(recipientUser).emit("send message", {
+          message,
+          senderId,
+          attachment,
+        });
+      }
 
-    if (senderId) {
-      socket.emit("send message", {
-        message,
-        senderId,
-        receiverId,
-        attachment,
-      });
+      if (senderId) {
+        socket.emit("send message", {
+          message,
+          senderId,
+          receiverId,
+          attachment,
+        });
+      }
     }
+  );
+  socket.on("offer_call", ({ from, to, offer }) => {
+    const toUser = userSocket.get(to);
+  
+    socket.to(toUser).emit("receive_call",{from,to,offer})
   });
+  socket.on("answer_call",({ from, to, answer})=>{
+    console.log(from, to ,answer,'ans')
 
+  })
   socket.on("disconnect", () => {
-    const offlineUser = socketUser.get(socket.id);
-    socket.removeAllListeners("send message");
+    let offlineUser = null;
+    for (let [key, value] of onlineUser.entries()) {
+      if (value == socket.id) {
+        offlineUser = key;
+        break;
+      }
+    }
 
     if (offlineUser) {
+      onlineUser.delete(offlineUser);
       io.emit("userStatus", { status: "Offline", userId: offlineUser });
-      userSocket.delete(offlineUser);
+
       console.log(`User with socket ID ${socket.id} removed from map`);
     }
   });
