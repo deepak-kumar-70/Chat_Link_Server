@@ -65,13 +65,16 @@ app.post("/upload", upload.single("attachment"), async (req, res) => {
     res.status(500).send("Error uploading file.");
   }
 });
-
+const conectedUser=new Map();
 const userSocket = new Map();
 const socketUser = new Map();
 const onlineUser = new Map();
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
-
+  socket.on("connection",({senderId})=>{
+    conectedUser.set(senderId,socket.id)
+   
+  })
   socket.on("findUser", ({ senderId, receiverId }) => {
     if (
       mongoose.Types.ObjectId.isValid(senderId) &&
@@ -117,7 +120,7 @@ io.on("connection", (socket) => {
       }
 
       userSocket.set(senderId, socket.id);
-      const recipientUser = userSocket.get(receiverId);
+      const recipientUser = conectedUser.get(receiverId);
 
       if (!recipientUser) {
         socket.emit("messageTick", "singleTick");
@@ -146,14 +149,19 @@ io.on("connection", (socket) => {
     }
   );
   socket.on("offer_call", ({ from, to, offer }) => {
-    const toUser = userSocket.get(to);
-  
+    const toUser = conectedUser.get(to);
     socket.to(toUser).emit("receive_call",{from,to,offer})
   });
   socket.on("answer_call",({ from, to, answer})=>{
-    console.log(from, to ,answer,'ans')
+    const toUser=conectedUser.get(to)
+    socket.to(toUser).emit('receive_answer',{from,to,answer})
+  });
+  socket.on("ice_Candidate",({ from, to,candidate})=>{
+    console.log(candidate,'can')
+    const toUser=conectedUser.get(to)
+    socket.to(toUser).emit('receive_ice_Candidate',{from,to,candidate})
+  });
 
-  })
   socket.on("disconnect", () => {
     let offlineUser = null;
     for (let [key, value] of onlineUser.entries()) {
